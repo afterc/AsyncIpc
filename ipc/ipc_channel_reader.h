@@ -26,7 +26,7 @@ namespace internal {
 class ChannelReader {
  public:
 	 // Amount of data to read at once from the pipe.
-	 static const size_t kReadBufferSize = 4 * 1024;
+	 static const size_t kReadBufferSize = 8 * 1024;
 
   explicit ChannelReader(Listener* listener);
   virtual ~ChannelReader();

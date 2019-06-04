@@ -37,9 +37,8 @@ public:
 	bool ReadFloat(float* result);
 	bool ReadString(std::string* result);
 	bool ReadWString(std::wstring* result);
-	bool ReadData(const char** data, int* length);
-	bool ReadBytes(const char** data, int length);
-
+	bool ReadData(const char* data, int* length);
+	bool ReadBytes(const char* data, int length);
 
 private:
 	template <typename Type>
@@ -81,6 +80,8 @@ class Message {
   // Initialize a message with a user-defined type, priority value, and
   // destination WebView ID.
   Message(int32 routing_id, uint32 type, PriorityValue priority);
+
+  Message(uint32 type);
 
   // Initializes a message from a const block of data.  The data is not copied;
   // instead the data is merely referenced by this message.  Only const methods
@@ -214,7 +215,7 @@ class Message {
   bool WriteBytes(const void* data, int data_len);
 
   // Used for async messages with no parameters.
-  static void Log(std::string* name, const Message* msg, std::string* l) {
+  static void WriteLog(std::string* name, const Message* msg, std::string* l) {
   }
 
   // 从buffer中寻找下一条消息的起始地址

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "ipc/ipc_message.h"
+#include "ipc/ipc_memory_pool.h"
 
 #include <cassert>
 #include <algorithm>
@@ -14,7 +15,6 @@ int32 g_ref_num = 0;
 const int kPayloadUnit = 32;
 
 const size_t kCapacityReadOnly = static_cast<size_t>(-1);
-
 
 
 // Create a reference number for identifying IPC messages in traces. The return
@@ -40,7 +40,7 @@ namespace IPC {
 
 Message::~Message() {
 	if (capacity_ != kCapacityReadOnly)
-		free(header_);
+		MemoryPool<uint8_t>::GetInstance()->Free((uint8_t*)header_);
 }
 
 Message::Message()
@@ -53,8 +53,6 @@ Message::Message()
   header()->payload_size = 0;
   header()->routing = header()->type = 0;
   header()->flags = GetRefNumUpper24();
-
-  
 
   InitLoggingVariables();
 }
@@ -71,9 +69,23 @@ Message::Message(int32 routing_id, uint32 type, PriorityValue priority)
   header()->type = type;
   assert((priority & 0xffffff00) == 0);
   header()->flags = priority | GetRefNumUpper24();
-
   
   InitLoggingVariables();
+}
+
+Message::Message(uint32 type)
+	: header_(NULL)
+	, capacity_(0)
+	, ref_count_(0)
+	, variable_buffer_offset_(0) {
+	Resize(kPayloadUnit);
+
+	header()->payload_size = 0;
+	header()->routing = 0;
+	header()->type = type;
+	header()->flags = PRIORITY_NORMAL | GetRefNumUpper24();
+
+	InitLoggingVariables();
 }
 
 Message::Message(const char* data, int data_len) 
@@ -144,9 +156,15 @@ bool Message::Resize(size_t new_capacity)
 	new_capacity = AlignInt(new_capacity, kPayloadUnit);
 
 	assert(capacity_ != kCapacityReadOnly);
-	void* p = realloc(header_, new_capacity);
+	void* p = MemoryPool<uint8_t>::GetInstance()->Allocate(new_capacity);
 	if (!p)
 		return false;
+
+	if (header_)
+	{
+		memcpy(p, header_, size());
+		MemoryPool<uint8_t>::GetInstance()->Free((uint8_t*)header_);
+	}
 
 	header_ = reinterpret_cast<Header*>(p);
 	capacity_ = new_capacity;
@@ -218,7 +236,6 @@ void Message::Release() const
 		delete this;
 	}
 }
-
 
 MessageReader::MessageReader(Message* m)
 	: read_ptr_(m->payload())
@@ -315,10 +332,9 @@ bool MessageReader::ReadWString(std::wstring* result)
 	return true;
 }
 
-bool MessageReader::ReadData(const char** data, int* length)
+bool MessageReader::ReadData(const char* data, int* length)
 {
 	*length = 0;
-	*data = 0;
 
 	if (!ReadInt(length))
 		return false;
@@ -326,12 +342,13 @@ bool MessageReader::ReadData(const char** data, int* length)
 	return ReadBytes(data, *length);
 }
 
-bool MessageReader::ReadBytes(const char** data, int length)
+bool MessageReader::ReadBytes(const char* data, int length)
 {
 	const char* read_from = GetReadPointerAndAdvance(length);
 	if (!read_from)
 		return false;
-	*data = read_from;
+
+	memcpy((void*)data, read_from, length);
 	return true;
 }
 

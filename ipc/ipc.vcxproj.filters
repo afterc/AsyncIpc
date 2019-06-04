@@ -45,6 +45,9 @@
     <ClInclude Include="ipc_channel.h">
       <Filter>ipc</Filter>
     </ClInclude>
+    <ClInclude Include="ipc_memory_pool.h">
+      <Filter>ipc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ipc_utils.cpp">
