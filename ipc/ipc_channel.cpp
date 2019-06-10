@@ -5,13 +5,11 @@
 #include "ipc/ipc_channel.h"
 
 #include <windows.h>
+#include <assert.h>
 
 #include "ipc/ipc_listener.h"
 #include "ipc/ipc_utils.h"
 #include "ipc/ipc_message.h"
-#include <assert.h>
-//#include "ipc/ipc_logging.h"
-//#include "ipc/ipc_message_utils.h"
 
 
 namespace {
@@ -23,28 +21,28 @@ namespace {
 
 namespace IPC {
 
-	std::string Channel::GenerateUniqueRandomChannelID() {
-		// Note: the string must start with the current process id, this is how
-		// some child processes determine the pid of the parent.
-		//
-		// This is composed of a unique incremental identifier, the process ID of
-		// the creator, an identifier for the child instance, and a strong random
-		// component. The strong random component prevents other processes from
-		// hijacking or squatting on predictable channel names.
-		char buffer[64] = { 0 }; //10*3 + 2 + 1
-		int process_id = ::GetCurrentProcessId();
-		sprintf(buffer, "%d.%u.%d", process_id, g_last_id.GetNext(), RandInt(0, (std::numeric_limits<int32>::max)()));
-		return std::string(buffer);
-	}
+std::string Channel::GenerateUniqueRandomChannelID() {
+	// Note: the string must start with the current process id, this is how
+	// some child processes determine the pid of the parent.
+	//
+	// This is composed of a unique incremental identifier, the process ID of
+	// the creator, an identifier for the child instance, and a strong random
+	// component. The strong random component prevents other processes from
+	// hijacking or squatting on predictable channel names.
+	char buffer[64] = { 0 }; //10*3 + 2 + 1
+	int process_id = ::GetCurrentProcessId();
+	sprintf(buffer, "%d.%u.%d", process_id, g_last_id.GetNext(), RandInt(0, (std::numeric_limits<int32>::max)()));
+	return std::string(buffer);
+}
 
-	Channel::State::State(Channel* channel) : is_pending(false) {
-  memset(&context.overlapped, 0, sizeof(context.overlapped));
-  context.handler = channel;
+Channel::State::State(Channel* channel) : is_pending(false) {
+	memset(&context.overlapped, 0, sizeof(context.overlapped));
+	context.handler = channel;
 }
 
 Channel::State::~State() {
-  //COMPILE_ASSERT(!offsetof(Channel::State, context),
-  //               starts_with_io_context);
+	//COMPILE_ASSERT(!offsetof(Channel::State, context),
+	//               starts_with_io_context);
 }
 
 Channel::Channel(const IPC::ChannelHandle &channel_handle, Listener* listener, Thread* thread)
@@ -58,7 +56,7 @@ Channel::Channel(const IPC::ChannelHandle &channel_handle, Listener* listener, T
 	client_secret_(0),
 	thread_(thread),
 	validate_client_(false) {
-  CreatePipe(channel_handle);
+	CreatePipe(channel_handle);
 }
 
 Channel::~Channel() {
@@ -96,7 +94,7 @@ bool Channel::Send(Message* message) {
 //            << " (" << output_queue_.size() << " in queue)";
 
 #ifdef IPC_MESSAGE_LOG_ENABLED
-  Logging::GetInstance()->OnSendMessage(message, "");
+	Logging::GetInstance()->OnSendMessage(message, "");
 #endif
 	message->AddRef();
 	//message->TraceMessageBegin();
@@ -357,7 +355,7 @@ bool Channel::ProcessConnection() {
 bool Channel::ProcessOutgoingMessages(
     Thread::IOContext* context,
     DWORD bytes_written) {
-  assert(!waiting_connect_);  // Why are we trying to send messages if there's
+	assert(!waiting_connect_);  // Why are we trying to send messages if there's
                               // no connection?
 	//DCHECK(thread_check_->CalledOnValidThread());
 
@@ -418,6 +416,7 @@ void Channel::OnIOCompleted(
     DWORD bytes_transfered,
     DWORD error) {
 	bool ok = true;
+
 	//assert(thread_check_->CalledOnValidThread());
 	if (context == &input_state_.context) {
 		if (waiting_connect_) {
@@ -442,16 +441,16 @@ void Channel::OnIOCompleted(
 			// This is the normal case for everything except the initialization step.
 			input_state_.is_pending = false;
 			if (!bytes_transfered)
-			ok = false;
+				ok = false;
 			else if (pipe_ != INVALID_HANDLE_VALUE)
-			ok = AsyncReadComplete(bytes_transfered);
+				ok = AsyncReadComplete(bytes_transfered);
 		} else {
 			assert(!bytes_transfered);
 		}
 
 		// Request more data.
 		if (ok)
-		ok = ProcessIncomingMessages();
+			ok = ProcessIncomingMessages();
 
 		processing_incoming_ = false;
 	} else {

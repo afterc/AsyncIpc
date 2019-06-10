@@ -3,9 +3,28 @@
 
 #include "stdafx.h"
 
+#include <ctime>
+#include <sstream>
+#include <chrono>
+#include <iomanip>
+
 #include "sample_client.h"
 #include "ipc/ipc_message.h"
 
+#pragma warning(disable:4996)
+
+std::string Now()
+{
+	auto now = std::chrono::system_clock::now();
+	auto m = now.time_since_epoch();
+	auto diff = std::chrono::duration_cast<std::chrono::microseconds>(m).count();
+	auto const ms = diff % 1000000;
+
+	std::stringstream ss;
+	std::time_t t = std::chrono::system_clock::to_time_t(now);
+	ss << std::put_time(std::localtime(&t), "%Y-%m-%d %H.%M.%S") << "." << ms;
+	return ss.str();
+}
 
 int _tmain(int argc, _TCHAR* argv[])
 {
